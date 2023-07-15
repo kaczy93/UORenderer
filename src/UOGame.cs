@@ -1,3 +1,4 @@
+using ClassicUO.Assets;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
@@ -31,8 +32,9 @@ internal class UOGame : Game
         {
             _gdm.GraphicsProfile = GraphicsProfile.HiDef;
         }
-
         _gdm.ApplyChanges();
+        
+        TextureAtlas.InitializeSharedTexture(_gdm.GraphicsDevice);
         _mapManager = new MapManager(_gdm.GraphicsDevice);
         _uiManager = new UIManager(_gdm.GraphicsDevice);
 

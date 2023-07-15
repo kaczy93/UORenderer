@@ -1,3 +1,4 @@
+using ClassicUO.Assets;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -17,26 +18,6 @@ public class MapManager
 
     // Currently loaded map
     private Map _map;
-
-    private struct LandTexture
-    {
-        public Texture2D Texture;
-        public Rectangle Bounds;
-        public bool Rotate;
-    }
-
-    private LandTexture[] _landTextures;
-
-    private struct StaticTexture
-    {
-        public Texture2D Texture;
-        public Rectangle Bounds;
-        public bool AsLand;
-    }
-
-    private StaticTexture[] _staticTextures;
-
-    private ArtFile _staticArt;
 
     private Camera _camera = new Camera();
     private Camera _lightSourceCamera = new Camera();
@@ -69,9 +50,6 @@ public class MapManager
     {
         _gfxDevice = gd;
 
-        TextureFormat.DetectFormat(gd);
-        TextureAtlasManager.Initialize(gd);
-
         _mapRenderer = new MapRenderer(gd, null);
 
         _shadowTarget = new RenderTarget2D(
@@ -85,11 +63,11 @@ public class MapManager
 
         _postProcessRenderer = new PostProcessRenderer(gd);
 
-        _map = new Map(0, 10752, 6144);
+        _map = new Map(0, 6144, 4096);
 
-        var focus = _map.GetLandTile(909, 1557);
+        var focus = _map.GetLandTile(1455, 1900);
 
-        _camera.LookAt = new Vector3(909 * TILE_SIZE, 1557 * TILE_SIZE, focus.Z * TILE_Z_SCALE);
+        _camera.LookAt = new Vector3(1455 * TILE_SIZE, 1900 * TILE_SIZE, focus.Z * TILE_Z_SCALE);
         _camera.ScreenSize.X = 0;
         _camera.ScreenSize.Y = 0;
         _camera.ScreenSize.Width = gd.PresentationParameters.BackBufferWidth;
@@ -110,55 +88,7 @@ public class MapManager
             1f - _lightingState.LightDiffuseColor.Y,
             1f - _lightingState.LightDiffuseColor.Z
         );
-
-        /* THIS ALL HAS TO BE DONE TOTALLY DIFFERENTLY. LAND TILES AND STATICS ARE IN THE SAME MUL FILE,
-         * BUT ON OUTLANDS THEY'RE IN DIFFERENT FILES. */
-
-        using var texFile = new ArtFile(UORenderer.CurrentProject.GetFullPath("texmaps.mul"));
-        using var artFile = new ArtFile(UORenderer.CurrentProject.GetFullPath("art.mul"));
-
-        _landTextures = new LandTexture[artFile.Max];
-
-        /* Pre-load the land */
-        for (uint i = 0; i < _landTextures.Length; i++)
-        {
-            var sprite = artFile.GetSprite(i);
-            var tex = texFile.GetSprite(i);
-
-            if (tex.Pixels == null && sprite.Pixels == null)
-                continue;
-
-            if (i == 2)
-            {
-                /* black out the no-draw tile */
-                for (int j = 0; j < tex.Pixels.Length; j++)
-                {
-                    if (tex.Pixels[j] != 0x8000 && tex.Pixels[j] != 0)
-                    {
-                        tex.Pixels[j] = 0x8000;
-                    }
-                }
-            }
-
-            ref var tile = ref _landTextures[i];
-
-            if (tex.Pixels != null)
-            {
-                DarkenTexture(tex.Pixels);
-                tile.Texture = TextureAtlasManager.AddLandTile(tex.Pixels, tex.Width, tex.Height, out tile.Bounds);
-            }
-            else
-            {
-                tile.Texture = TextureAtlasManager.AddLandTile(sprite.Pixels, sprite.Width, sprite.Height, out tile.Bounds);
-                tile.Rotate = true;
-            }
         }
-
-        /* Lazy load the statics */
-        _staticArt = new ArtFile(UORenderer.CurrentProject.GetFullPath("art.mul"));
-        _staticTextures = new StaticTexture[_staticArt.Max];
-
-    }
 
     private enum MouseDirection
     {
@@ -430,35 +360,16 @@ public class MapManager
                 {
                     ref var s = ref statics[i];
 
-                    ref var staticTex = ref _staticTextures[s.ID];
+                    var texture = ArtLoader.Instance.GetStaticTexture(s.ID, out var bounds);
+                    var isLand = texture.Width == 44 && texture.Height == 44;
 
-                    if (staticTex.Texture == null)
-                    {
-                        var sprite = _staticArt.GetSprite(s.ID);
-
-                        if (sprite.Pixels == null)
-                        {
-                            continue;
-                        }
-
-                        if (sprite.Width == 44 && sprite.Height == 44)
-                        {
-                            staticTex.Texture = TextureAtlasManager.AddLandTile(sprite.Pixels, sprite.Width, sprite.Height, out staticTex.Bounds);
-                            staticTex.AsLand = true;
-                        }
-                        else
-                        {
-                            staticTex.Texture = TextureAtlasManager.AddArt(sprite.Pixels, sprite.Width, sprite.Height, out staticTex.Bounds);
-                        }
-                    }
-
-                    if (staticTex.AsLand)
+                    if (isLand)
                     {
                         _shadowRenderer.DrawTile(
                             new Vector2(x * TILE_SIZE, y * TILE_SIZE),
                             new Vector4(s.Z * TILE_Z_SCALE),
-                            staticTex.Texture,
-                            staticTex.Bounds,
+                            texture,
+                            bounds,
                             true
                         );
                     }
@@ -466,8 +377,8 @@ public class MapManager
                     {
                         _shadowRenderer.DrawBillboard(
                             new Vector3(x * TILE_SIZE, y * TILE_SIZE, s.Z * TILE_Z_SCALE),
-                            staticTex.Texture,
-                            staticTex.Bounds
+                            texture,
+                            bounds
                         );
                     }
                 }
@@ -480,12 +391,12 @@ public class MapManager
             {
                 var tile = _map.GetLandTile(x, y);
 
-                ref var tileTex = ref _landTextures[tile.ID];
+                var tileTex = ArtLoader.Instance.GetLandTexture(tile.ID, out var bounds);
 
-                if (tileTex.Texture == null)
+                if (tileTex == null)
                     continue;
 
-                ref var data = ref TileData.LandTable[tile.ID];
+                ref var data = ref TileDataLoader.Instance.LandData[tile.ID];
 
                 Vector4 zCorners;
                 if ((data.Flags & TileFlag.Wet) != 0)
@@ -501,9 +412,9 @@ public class MapManager
                 _shadowRenderer.DrawTile(
                     new Vector2(x * TILE_SIZE, y * TILE_SIZE),
                     zCorners,
-                    tileTex.Texture,
-                    tileTex.Bounds,
-                    tileTex.Rotate
+                    tileTex,
+                    bounds,
+                    true
                 );
             }
         }
@@ -532,30 +443,10 @@ public class MapManager
                 {
                     ref var s = ref statics[i];
 
-                    ref var staticTex = ref _staticTextures[s.ID];
-
-                    if (staticTex.Texture == null)
-                    {
-                        var sprite = _staticArt.GetSprite(s.ID);
-
-                        if (sprite.Pixels == null)
-                        {
-                            continue;
-                        }
-
-                        if (sprite.Width == 44 && sprite.Height == 44)
-                        {
-                            // This should really check the surface flags too I think.
-                            staticTex.Texture = TextureAtlasManager.AddLandTile(sprite.Pixels, sprite.Width, sprite.Height, out staticTex.Bounds);
-                            staticTex.AsLand = true;
-                        }
-                        else
-                        {
-                            staticTex.Texture = TextureAtlasManager.AddArt(sprite.Pixels, sprite.Width, sprite.Height, out staticTex.Bounds);
-                        }
-                    }
-
-                    if (staticTex.AsLand)
+                    var texture = ArtLoader.Instance.GetStaticTexture(s.ID, out var bounds);
+                    var isLand = texture.Width == 44 && texture.Height == 44;
+                    
+                    if (isLand)
                     {
                         _mapRenderer.DrawTile(
                             new Vector2(x * TILE_SIZE, y * TILE_SIZE),
@@ -564,8 +455,8 @@ public class MapManager
                             Vector3.UnitZ,
                             Vector3.UnitZ,
                             Vector3.UnitZ,
-                            staticTex.Texture,
-                            staticTex.Bounds,
+                            texture,
+                            bounds,
                             true
                         );
                     }
@@ -574,8 +465,8 @@ public class MapManager
                         _mapRenderer.DrawBillboard(
                             new Vector3(x * TILE_SIZE, y * TILE_SIZE, s.Z * TILE_Z_SCALE),
                             Vector3.UnitZ,
-                            staticTex.Texture,
-                            staticTex.Bounds
+                            texture,
+                            bounds
                         );
                     }
                 }
@@ -599,12 +490,15 @@ public class MapManager
             {
                 var tile = _map.GetLandTile(x, y);
 
-                ref var tileTex = ref _landTextures[tile.ID];
+                var tileTex = TexmapsLoader.Instance.GetLandTexture(tile.ID, out var bounds);
+                var diamondTexture = false;
+                if (tileTex == null)
+                {
+                    tileTex = ArtLoader.Instance.GetLandTexture(tile.ID, out bounds);
+                    diamondTexture = true;
+                }
 
-                if (tileTex.Texture == null)
-                    continue;
-
-                ref var data = ref TileData.LandTable[tile.ID];
+                ref var data = ref TileDataLoader.Instance.LandData[tile.ID];
 
                 if ((data.Flags & TileFlag.Wet) != 0)
                 {
@@ -616,9 +510,9 @@ public class MapManager
                         Vector3.UnitZ,
                         Vector3.UnitZ,
                         Vector3.UnitZ,
-                        tileTex.Texture,
-                        tileTex.Bounds,
-                        tileTex.Rotate
+                        tileTex,
+                        bounds,
+                        diamondTexture
                     );
                 }
                 else
@@ -630,9 +524,9 @@ public class MapManager
                         ComputeNormal(x + 1, y),
                         ComputeNormal(x, y + 1),
                         ComputeNormal(x + 1, y + 1),
-                        tileTex.Texture,
-                        tileTex.Bounds,
-                        tileTex.Rotate
+                        tileTex,
+                        bounds,
+                        diamondTexture
                     );
                 }
 

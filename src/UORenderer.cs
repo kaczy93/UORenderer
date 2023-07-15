@@ -3,6 +3,9 @@ using System.Globalization;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
+using ClassicUO.Assets;
+using ClassicUO.Utility;
+using ClassicUO.Utility.Logging;
 
 namespace UORenderer;
 
@@ -94,7 +97,12 @@ internal static class UORenderer
         _loadContext = AssemblyLoadContext.Default;
         _loadContext.ResolvingUnmanagedDll += ResolveUnmanagedDll;
         _loadContext.Resolving += ResolveAssembly;
-
+        
+        NativeLibrary.Load(Path.Combine(_rootDir, "x64", "zlib.dll"));
+        
+        Log.Start(LogTypes.All);
+        UOFileManager.Load(ClientVersion.CV_70796, @"D:\Games\Ultima Online Classic_7_0_95_0_modified", false, "enu");
+        
         using (Game g = new UOGame())
         {
             g.Run();

@@ -1,3 +1,5 @@
+using ClassicUO.Assets;
+
 namespace UORenderer;
 
 public struct LandTile
@@ -36,12 +38,12 @@ public class Map
     private LandTile[,] m_InvalidLandSector;
     private StaticTile[,][] m_EmptyStaticSector;
 
-    private MemoryMappedReader? m_Map;
+    private BinaryReader? m_Map;
 
     private FileStream? m_Index;
     private BinaryReader? m_IndexReader;
 
-    private MemoryMappedReader? m_Statics;
+    private BinaryReader? m_Statics;
 
     private int m_SectorWidth;
     private int m_SectorHeight;
@@ -53,14 +55,14 @@ public class Map
 
         if (fileIndex != 0x7F)
         {
-            string mapPath = UORenderer.CurrentProject.GetFullPath($"map{fileIndex}.mul");
+            string mapPath = UOFileManager.GetUOFilePath($"map{fileIndex}.mul");
 
             if (File.Exists(mapPath))
             {
-                m_Map = new MemoryMappedReader(new FileStream(mapPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite));
+                m_Map = new BinaryReader(new FileStream(mapPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite));
             }
 
-            string indexPath = UORenderer.CurrentProject.GetFullPath($"staidx{fileIndex}.mul");
+            string indexPath = UOFileManager.GetUOFilePath($"staidx{fileIndex}.mul");
 
             if (File.Exists(indexPath))
             {
@@ -68,10 +70,10 @@ public class Map
                 m_IndexReader = new BinaryReader(m_Index);
             }
 
-            string staticsPath = UORenderer.CurrentProject.GetFullPath($"statics{fileIndex}.mul");
+            string staticsPath = UOFileManager.GetUOFilePath($"statics{fileIndex}.mul");
 
             if (File.Exists(staticsPath))
-                m_Statics = new MemoryMappedReader(new FileStream(staticsPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite));
+                m_Statics = new BinaryReader(new FileStream(staticsPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite));
         }
 
         m_EmptyStaticSector = new StaticTile[8, 8][];
@@ -150,7 +152,7 @@ public class Map
 
         int count = length / 7;
 
-        m_Statics.Seek(lookup, SeekOrigin.Begin);
+        m_Statics.BaseStream.Seek(lookup, SeekOrigin.Begin);
 
         StaticTile[,][] tiles = new StaticTile[8, 8][];
 
@@ -187,7 +189,7 @@ public class Map
     {
         int offset = ((x * m_SectorHeight) + y) * 196 + 4;
 
-        m_Map.Seek(offset, SeekOrigin.Begin);
+        m_Map.BaseStream.Seek(offset, SeekOrigin.Begin);
 
         LandTile[,] tiles = new LandTile[8, 8];
 
