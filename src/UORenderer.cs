@@ -98,8 +98,7 @@ internal static class UORenderer
         _loadContext.ResolvingUnmanagedDll += ResolveUnmanagedDll;
         _loadContext.Resolving += ResolveAssembly;
         
-        NativeLibrary.Load(Path.Combine(_rootDir, "x64", "zlib.dll"));
-        
+        NativeLibrary.Load(Path.Combine(_rootDir, "zlib.dll"));
         Log.Start(LogTypes.All);
         UOFileManager.Load(ClientVersion.CV_70796, @"D:\Games\Ultima Online Classic_7_0_95_0_modified", false, "enu");
         

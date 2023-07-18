@@ -34,17 +34,18 @@
 
   <ItemGroup>
     <DataFiles_libs Include="..\lib\**" />
+    <DataFiles_libs Include="..\cuolib\**" />
   </ItemGroup>
 
   <ItemGroup>
     <Reference Include="ClassicUO.Assets">
-      <HintPath>..\lib\x64\ClassicUO.Assets.dll</HintPath>
+      <HintPath>..\cuolib\ClassicUO.Assets.dll</HintPath>
     </Reference>
     <Reference Include="ClassicUO.IO">
-      <HintPath>..\lib\x64\ClassicUO.IO.dll</HintPath>
+      <HintPath>..\cuolib\ClassicUO.IO.dll</HintPath>
     </Reference>
     <Reference Include="ClassicUO.Utility">
-      <HintPath>..\lib\x64\ClassicUO.Utility.dll</HintPath>
+      <HintPath>..\cuolib\ClassicUO.Utility.dll</HintPath>
     </Reference>
   </ItemGroup>
 
